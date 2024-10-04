@@ -33,7 +33,7 @@ namespace Users.Security.TokenServices
             string key = config.GetValue<string>("JwtSettings:Key");
 
             SymmetricSecurityKey securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
-            Credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
+            Credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
             ValidationParameters = new TokenIdentityValidationParameters(Issuer, Audience, securityKey);
         }
 
