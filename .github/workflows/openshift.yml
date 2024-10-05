@@ -45,8 +45,8 @@ jobs:
       with:
         image: ${{ env.APP_NAME }}
         tags: ${{ env.IMAGE_TAGS }}
-        dockerfiles: |
-          ./DrinkApp/Dockerfile  # Updated path to Dockerfile
+        dockerfiles: ./DrinkApp/Dockerfile  # Updated path to Dockerfile
+        context: ./DrinkApp  # This defines the correct build context
 
     # Push the built Docker image to Docker Hub or another container registry
     - name: Push Docker image to Docker Hub
