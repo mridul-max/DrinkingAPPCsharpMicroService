@@ -78,6 +78,11 @@ jobs:
         namespace: ${{ env.OPENSHIFT_NAMESPACE }}
         port: ${{ env.APP_PORT }}
 
+    # Wait for the deployment to be available
+    - name: Wait for Deployment to be Available
+      run: |
+        oc rollout status deployment/${{ env.APP_NAME }} --watch
+
     # Inject environment variables from GitHub Secrets into the OpenShift deployment
     - name: Set environment variables in OpenShift
       run: |
