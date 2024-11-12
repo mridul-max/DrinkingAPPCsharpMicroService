@@ -10,7 +10,7 @@ env:
   # Secrets for OpenShift access
   OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
   OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
-  OPENSHIFT_NAMESPACE: "mahedi017-dev" # Change to your namespace
+  OPENSHIFT_NAMESPACE: "kilo-dev" # Change to your namespace
   APP_NAME: "my-azure-function" # Change to your app name
   APP_PORT: "8080" # Port your app listens to
   IMAGE_REGISTRY: "docker.io/mridul017" # Docker Hub username or other registry
