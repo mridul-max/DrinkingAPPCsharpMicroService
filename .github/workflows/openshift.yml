@@ -88,9 +88,9 @@ jobs:
       run: |
         oc set env deployment/${{ env.APP_NAME }} dbkey=${{ secrets.dbkey }}
         oc set env deployment/${{ env.APP_NAME }} DBURI=${{ secrets.DBURI }}
-        oc set env deployment/${{ env.APP_NAME }} JwtKey=${{ secrets.JWTKEY }}
-        oc set env deployment/${{ env.APP_NAME }} JwtIssuer=${{ secrets.JwtIssuer }}
-        oc set env deployment/${{ env.APP_NAME }} JwtAudience=${{ secrets.JwtAudience }}
+        oc set env deployment/${{ env.APP_NAME }} Key=${{ secrets.JWTKEY }}
+        oc set env deployment/${{ env.APP_NAME }} Issuer=${{ secrets.JwtIssuer }}
+        oc set env deployment/${{ env.APP_NAME }} Audience=${{ secrets.JwtAudience }}
         oc set env deployment/${{ env.APP_NAME }} SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
         oc set env deployment/${{ env.APP_NAME }} SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }}
 
