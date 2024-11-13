@@ -83,25 +83,18 @@ jobs:
       run: |
         oc rollout status deployment/${{ env.APP_NAME }} --watch
 
-    # Inject environment variables from GitHub Secrets into the OpenShift deployment (Batch 1)
-    - name: Set environment variables (Batch 1)
+    # Inject environment variables from GitHub Secrets into the OpenShift deployment
+    - name: Set environment variables
       run: |
-        oc set env deployment/${{ env.APP_NAME }} dbkey=${{ secrets.DBKEY }}
-        oc set env deployment/${{ env.APP_NAME }} DBURI=${{ secrets.DBURI }}
-        oc set env deployment/${{ env.APP_NAME }} DBName=${{ secrets.DBNAME }}
-
-    # Inject environment variables from GitHub Secrets into the OpenShift deployment (Batch 2)
-    - name: Set environment variables (Batch 2)
-      run: |
-        oc set env deployment/${{ env.APP_NAME }} Key=${{ secrets.KEY }}
-        oc set env deployment/${{ env.APP_NAME }} Issuer=${{ secrets.ISSUER }}
-        oc set env deployment/${{ env.APP_NAME }} Audience=${{ secrets.AUDIENCE }}
-
-    # Inject environment variables from GitHub Secrets into the OpenShift deployment (Batch 3)
-    - name: Set environment variables (Batch 3)
-      run: |
-        oc set env deployment/${{ env.APP_NAME }} SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
-        oc set env deployment/${{ env.APP_NAME }} SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }}
+        oc set env deployment/${{ env.APP_NAME }} \
+          dbkey=${{ secrets.DBKEY }} \
+          DBURI=${{ secrets.DBURI }} \
+          DBName=${{ secrets.DBNAME }} \
+          Key=${{ secrets.KEY }} \
+          Issuer=${{ secrets.ISSUER }} \
+          Audience=${{ secrets.AUDIENCE }} \
+          SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }} \
+          SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }}
 
     # Print out the exposed route (URL) for your deployed application
     - name: Print application URL
