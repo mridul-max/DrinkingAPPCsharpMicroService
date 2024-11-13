@@ -1,6 +1,4 @@
-name: Build and Deploy to OpenShift
-
-# Trigger the workflow when there is a push to the main branch or manually
+# Trigger the workflow on push to the main branch or manually
 on:
   push:
     branches: [ "main" ]
@@ -17,8 +15,8 @@ env:
   IMAGE_REGISTRY_USER: "mridul017" # Docker Hub username
   IMAGE_REGISTRY_PASSWORD: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
 
-  # Default tags for the image
-  IMAGE_TAGS: "latest"
+  # Default tag using git commit hash for better versioning
+  IMAGE_TAGS: ${{ github.sha }}
 
 jobs:
   build-and-deploy:
@@ -26,29 +24,31 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
+    # Checkout repository
     - name: Check out the repository
       uses: actions/checkout@v4
 
-    # Install required tools like buildah for container builds and oc for OpenShift interaction
+    # Set up Docker Buildx
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
+    # Install oc CLI (OpenShift)
     - name: Install oc CLI (OpenShift)
       uses: redhat-actions/openshift-tools-installer@v1
       with:
         oc: 4.6.0
 
-    # Build Docker image using the Dockerfile in the DrinkApp directory
+    # Build Docker image using Buildah
     - name: Build Docker image using Buildah
       id: build-image
       uses: redhat-actions/buildah-build@v2
       with:
         image: ${{ env.APP_NAME }}
         tags: ${{ env.IMAGE_TAGS }}
-        dockerfiles: ./DrinkApp/Dockerfile  # Updated path to Dockerfile
-        context: ./DrinkApp  # This defines the correct build context
+        dockerfiles: ./DrinkApp/Dockerfile  # Correct path to Dockerfile
+        context: ./DrinkApp
 
-    # Push the built Docker image to Docker Hub or another container registry
+    # Push the built Docker image to Docker Hub
     - name: Push Docker image to Docker Hub
       id: push-image
       uses: redhat-actions/push-to-registry@v2
@@ -59,7 +59,7 @@ jobs:
         username: ${{ env.IMAGE_REGISTRY_USER }}
         password: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
 
-    # Log in to the OpenShift cluster using oc-login
+    # Log in to OpenShift
     - name: Log in to OpenShift
       uses: redhat-actions/oc-login@v1
       with:
@@ -68,7 +68,7 @@ jobs:
         insecure_skip_tls_verify: true
         namespace: ${{ env.OPENSHIFT_NAMESPACE }}
 
-    # Deploy and expose the application on OpenShift
+    # Deploy the application and expose as a service
     - name: Create and expose OpenShift app
       id: deploy-and-expose
       uses: redhat-actions/oc-new-app@v1
@@ -78,33 +78,46 @@ jobs:
         namespace: ${{ env.OPENSHIFT_NAMESPACE }}
         port: ${{ env.APP_PORT }}
 
-    # Wait for the deployment to be available
-    - name: Wait for Deployment to be Available
+    # Scale the application to ensure multiple pods for load balancing
+    - name: Scale Deployment
+      run: |
+        oc scale deployment/${{ env.APP_NAME }} --replicas=3
+
+    # Expose a route for external access
+    - name: Expose OpenShift Route
+      run: |
+        oc expose svc/${{ env.APP_NAME }} --hostname=${{ env.APP_NAME }}.apps.openshift-cluster.example.com
+
+    # Set up Horizontal Pod Autoscaler (HPA)
+    - name: Configure Horizontal Pod Autoscaler
+      run: |
+        oc autoscale deployment/${{ env.APP_NAME }} --min=2 --max=10 --cpu-percent=80
+
+    # Wait for deployment rollout
+    - name: Wait for Deployment Rollout
       run: |
         oc rollout status deployment/${{ env.APP_NAME }} --watch
 
-    # Inject environment variables from GitHub Secrets into the OpenShift deployment (Batch 1)
+    # Inject environment variables into deployment
     - name: Set environment variables (Batch 1)
       run: |
         oc set env deployment/${{ env.APP_NAME }} dbkey=${{ secrets.DBKEY }}
         oc set env deployment/${{ env.APP_NAME }} DBURI=${{ secrets.DBURI }}
         oc set env deployment/${{ env.APP_NAME }} DBName=${{ secrets.DBNAME }}
 
-    # Inject environment variables from GitHub Secrets into the OpenShift deployment (Batch 2)
     - name: Set environment variables (Batch 2)
       run: |
         oc set env deployment/${{ env.APP_NAME }} Key="${{ secrets.KEY }}"
         oc set env deployment/${{ env.APP_NAME }} Issuer="${{ secrets.ISSUER }}"
         oc set env deployment/${{ env.APP_NAME }} Audience="${{ secrets.AUDIENCE }}"
 
-    # Inject environment variables from GitHub Secrets into the OpenShift deployment (Batch 3)
     - name: Set environment variables (Batch 3)
       run: |
         oc set env deployment/${{ env.APP_NAME }} SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
         oc set env deployment/${{ env.APP_NAME }} SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }}
 
-    # Print out the exposed route (URL) for your deployed application
-    - name: Print application URL
+    # Print application URL
+    - name: Print Application URL
       run: |
         ROUTE=$(oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}')
         echo "Your app is available at: http://$ROUTE"
