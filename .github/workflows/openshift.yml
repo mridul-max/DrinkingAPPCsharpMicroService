@@ -16,6 +16,9 @@ env:
   IMAGE_REGISTRY: "docker.io/mridul017" # Docker Hub username or other registry
   IMAGE_REGISTRY_USER: "mridul017" # Docker Hub username
   IMAGE_REGISTRY_PASSWORD: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
+  KEY: ${{ secrets.KEY }}
+  ISSUER: ${{ secrets.ISSUER }}
+  AUDIENCE: ${{ secrets.AUDIENCE }}
 
   # Default tags for the image
   IMAGE_TAGS: "latest"
@@ -93,9 +96,9 @@ jobs:
     # Inject environment variables from GitHub Secrets into the OpenShift deployment (Batch 2)
     - name: Set environment variables (Batch 2)
       run: |
-        oc set env deployment/${{ env.APP_NAME }} Key=${{ secrets.KEY }}
-        oc set env deployment/${{ env.APP_NAME }} Issuer=${{ secrets.ISSUER }}
-        oc set env deployment/${{ env.APP_NAME }} Audience=${{ secrets.AUDIENCE }}
+        oc set env deployment/${{ env.APP_NAME }} Key=${{ env.KEY }}
+        oc set env deployment/${{ env.APP_NAME }} Issuer=${{ env.ISSUER }}
+        oc set env deployment/${{ env.APP_NAME }} Audience=${{ env.AUDIENCE }}
 
     # Inject environment variables from GitHub Secrets into the OpenShift deployment (Batch 3)
     - name: Set environment variables (Batch 3)
