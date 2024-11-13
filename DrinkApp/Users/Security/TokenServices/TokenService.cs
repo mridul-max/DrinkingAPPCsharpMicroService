@@ -27,10 +27,10 @@ namespace Users.Security.TokenServices
             _loginService = loginService;
 
             // Fetch values directly from environment variables
-            Issuer = Environment.GetEnvironmentVariable("JwtSettings__Issuer") ?? throw new Exception("Issuer not configured");
-            Audience = Environment.GetEnvironmentVariable("JwtSettings__Audience") ?? throw new Exception("Audience not configured");
+            Issuer = Environment.GetEnvironmentVariable("Issuer") ?? throw new Exception("Issuer not configured");
+            Audience = Environment.GetEnvironmentVariable("Audience") ?? throw new Exception("Audience not configured");
             ValidityDuration = TimeSpan.FromDays(1);
-            string key = Environment.GetEnvironmentVariable("JwtSettings__Key") ?? throw new Exception("Key not configured");
+            string key = Environment.GetEnvironmentVariable("Key") ?? throw new Exception("Key not configured");
 
             SymmetricSecurityKey securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             Credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
