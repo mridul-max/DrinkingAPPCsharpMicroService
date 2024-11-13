@@ -83,11 +83,6 @@ jobs:
       run: |
         oc scale deployment/${{ env.APP_NAME }} --replicas=3
 
-    # Expose a route for external access
-    - name: Expose OpenShift Route
-      run: |
-        oc expose svc/${{ env.APP_NAME }} --hostname=${{ env.APP_NAME }}.apps.openshift-cluster.example.com
-
     # Set up Horizontal Pod Autoscaler (HPA)
     - name: Configure Horizontal Pod Autoscaler
       run: |
