@@ -86,7 +86,15 @@ jobs:
     # Set up Horizontal Pod Autoscaler (HPA)
     - name: Configure Horizontal Pod Autoscaler
       run: |
-        oc autoscale deployment/${{ env.APP_NAME }} --min=2 --max=10 --cpu-percent=80
+        # Check if HPA already exists, then update it
+        if oc get hpa ${ { env.APP_NAME } } &>/dev/null; then
+          echo "Horizontal Pod Autoscaler already exists. Updating it."
+          oc autoscale deployment/${ { env.APP_NAME } } --min=2 --max=10 --cpu-percent=80
+        else
+          echo "Creating Horizontal Pod Autoscaler."
+          oc autoscale deployment/${ { env.APP_NAME } } --min=2 --max=10 --cpu-percent=80
+        fi
+
 
     # Wait for deployment rollout
     - name: Wait for Deployment Rollout
