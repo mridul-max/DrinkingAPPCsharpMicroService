@@ -16,9 +16,9 @@ env:
   IMAGE_REGISTRY: "docker.io/mridul017" # Docker Hub username or other registry
   IMAGE_REGISTRY_USER: "mridul017" # Docker Hub username
   IMAGE_REGISTRY_PASSWORD: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
-  KEY: ${{ secrets.KEY }}
-  ISSUER: ${{ secrets.ISSUER }}
-  AUDIENCE: ${{ secrets.AUDIENCE }}
+  KEY: "devKey development"
+  ISSUER: "DrinkAppRecipes.azurewebsites.net"
+  AUDIENCE: "DrinkAppUsers / Patients / Caregivers / Admins"
 
   # Default tags for the image
   IMAGE_TAGS: "latest"
