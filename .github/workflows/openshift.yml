@@ -88,6 +88,7 @@ jobs:
       run: |
         oc set env deployment/${{ env.APP_NAME }} dbkey=${{ secrets.DBKEY }}
         oc set env deployment/${{ env.APP_NAME }} DBURI=${{ secrets.DBURI }}
+        oc set env deployment/${{ env.APP_NAME }} DBName=${{ secrets.DBNAME }}
         oc set env deployment/${{ env.APP_NAME }} Key=${{ secrets.KEY }}
         oc set env deployment/${{ env.APP_NAME }} Issuer=${{ secrets.ISSUER }}
         oc set env deployment/${{ env.APP_NAME }} Audience=${{ secrets.AUDIENCE }}
