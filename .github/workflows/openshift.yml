@@ -77,6 +77,12 @@ jobs:
         image: ${{ steps.push-image.outputs.registry-path }}
         namespace: ${{ env.OPENSHIFT_NAMESPACE }}
         port: ${{ env.APP_PORT }}
+        
+    # Expose the route with TLS termination (HTTPS)
+    - name: Expose OpenShift route with TLS termination
+      run: |
+        oc expose deployment/${{ env.APP_NAME }} --name=${{ env.APP_NAME }}-route --port=${{ env.APP_PORT }} --hostname=${{ env.APP_NAME }}.${{ env.OPENSHIFT_NAMESPACE }}.example.com --tls-termination=edge --insecureEdgeTerminationPolicy=Redirect
+
 
     # Scale the application to ensure multiple pods for load balancing
     - name: Scale Deployment
