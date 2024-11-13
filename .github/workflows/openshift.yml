@@ -87,12 +87,12 @@ jobs:
     - name: Configure Horizontal Pod Autoscaler
       run: |
         # Check if HPA already exists, then update it
-        if oc get hpa ${ { env.APP_NAME } } &>/dev/null; then
+        if oc get hpa ${{ env.APP_NAME }} &>/dev/null; then
           echo "Horizontal Pod Autoscaler already exists. Updating it."
-          oc autoscale deployment/${ { env.APP_NAME } } --min=2 --max=10 --cpu-percent=80
+          oc autoscale deployment/${{ env.APP_NAME }} --min=2 --max=10 --cpu-percent=80
         else
           echo "Creating Horizontal Pod Autoscaler."
-          oc autoscale deployment/${ { env.APP_NAME } } --min=2 --max=10 --cpu-percent=80
+          oc autoscale deployment/${{ env.APP_NAME }} --min=2 --max=10 --cpu-percent=80
         fi
 
 
