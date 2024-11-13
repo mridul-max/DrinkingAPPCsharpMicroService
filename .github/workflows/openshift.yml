@@ -86,11 +86,11 @@ jobs:
     # Inject environment variables from GitHub Secrets into the OpenShift deployment
     - name: Set environment variables in OpenShift
       run: |
-        oc set env deployment/${{ env.APP_NAME }} dbkey=${{ secrets.dbkey }}
+        oc set env deployment/${{ env.APP_NAME }} dbkey=${{ secrets.DBKEY }}
         oc set env deployment/${{ env.APP_NAME }} DBURI=${{ secrets.DBURI }}
-        oc set env deployment/${{ env.APP_NAME }} JwtSettings__Key=${{ secrets.JWTKEY }}
-        oc set env deployment/${{ env.APP_NAME }} JwtSettings__Issuer=${{ secrets.JwtIssuer }}
-        oc set env deployment/${{ env.APP_NAME }} JwtSettings__Audience=${{ secrets.JwtAudience }}
+        oc set env deployment/${{ env.APP_NAME }} Key=${{ secrets.KEY }}
+        oc set env deployment/${{ env.APP_NAME }} Issuer=${{ secrets.ISSUER }}
+        oc set env deployment/${{ env.APP_NAME }} Audience=${{ secrets.AUDIENCE }}
         oc set env deployment/${{ env.APP_NAME }} SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
         oc set env deployment/${{ env.APP_NAME }} SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }}
 
