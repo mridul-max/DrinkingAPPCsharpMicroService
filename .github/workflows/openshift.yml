@@ -1,0 +1,101 @@
+name: Build and Deploy to OpenShift
+
+# Trigger the workflow when there is a push to the main branch or manually
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  # Secrets for OpenShift access
+  OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+  OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+  OPENSHIFT_NAMESPACE: "kilo-dev" # Change to your namespace
+  APP_NAME: "my-azure-function" # Change to your app name
+  APP_PORT: "8080" # Port your app listens to
+  IMAGE_REGISTRY: "docker.io/mridul017" # Docker Hub username or other registry
+  IMAGE_REGISTRY_USER: "mridul017" # Docker Hub username
+  IMAGE_REGISTRY_PASSWORD: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
+
+  # Default tags for the image
+  IMAGE_TAGS: "latest"
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to OpenShift
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Check out the repository
+      uses: actions/checkout@v4
+
+    # Install required tools like buildah for container builds and oc for OpenShift interaction
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Install oc CLI (OpenShift)
+      uses: redhat-actions/openshift-tools-installer@v1
+      with:
+        oc: 4.6.0
+
+    # Build Docker image using the Dockerfile in the DrinkApp directory
+    - name: Build Docker image using Buildah
+      id: build-image
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: ${{ env.APP_NAME }}
+        tags: ${{ env.IMAGE_TAGS }}
+        dockerfiles: ./DrinkApp/Dockerfile  # Updated path to Dockerfile
+        context: ./DrinkApp  # This defines the correct build context
+
+    # Push the built Docker image to Docker Hub or another container registry
+    - name: Push Docker image to Docker Hub
+      id: push-image
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build-image.outputs.image }}
+        tags: ${{ steps.build-image.outputs.tags }}
+        registry: ${{ env.IMAGE_REGISTRY }}
+        username: ${{ env.IMAGE_REGISTRY_USER }}
+        password: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
+
+    # Log in to the OpenShift cluster using oc-login
+    - name: Log in to OpenShift
+      uses: redhat-actions/oc-login@v1
+      with:
+        openshift_server_url: ${{ env.OPENSHIFT_SERVER }}
+        openshift_token: ${{ secrets.OPENSHIFT_TOKEN }}
+        insecure_skip_tls_verify: true
+        namespace: ${{ env.OPENSHIFT_NAMESPACE }}
+
+    # Deploy and expose the application on OpenShift
+    - name: Create and expose OpenShift app
+      id: deploy-and-expose
+      uses: redhat-actions/oc-new-app@v1
+      with:
+        app_name: ${{ env.APP_NAME }}
+        image: ${{ steps.push-image.outputs.registry-path }}
+        namespace: ${{ env.OPENSHIFT_NAMESPACE }}
+        port: ${{ env.APP_PORT }}
+
+    # Wait for the deployment to be available
+    - name: Wait for Deployment to be Available
+      run: |
+        oc rollout status deployment/${{ env.APP_NAME }} --watch
+
+    # Inject environment variables from GitHub Secrets into the OpenShift deployment
+    - name: Set environment variables in OpenShift
+      run: |
+        oc set env deployment/${{ env.APP_NAME }} dbkey=${{ secrets.dbkey }}
+        oc set env deployment/${{ env.APP_NAME }} DBURI=${{ secrets.DBURI }}
+        oc set env deployment/${{ env.APP_NAME }} JwtSettings__Key=${{ secrets.JWTKEY }}
+        oc set env deployment/${{ env.APP_NAME }} JwtSettings__Issuer=${{ secrets.JwtIssuer }}
+        oc set env deployment/${{ env.APP_NAME }} JwtSettings__Audience=${{ secrets.JwtAudience }}
+        oc set env deployment/${{ env.APP_NAME }} SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
+        oc set env deployment/${{ env.APP_NAME }} SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }}
+
+    # Print out the exposed route (URL) for your deployed application
+    - name: Print application URL
+      run: |
+        ROUTE=$(oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}')
+        echo "Your app is available at: http://$ROUTE"
