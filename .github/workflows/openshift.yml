@@ -10,7 +10,7 @@ env:
   OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
   OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
   OPENSHIFT_NAMESPACE: "kilo-dev" # Change to your namespace
-  APP_NAME: "my-azure-function" # Change to your app name
+  APP_NAME: "csharp-mricroservice" # Change to your app name
   APP_PORT: "8080" # Port your app listens to
   IMAGE_REGISTRY: "docker.io/mridul017" # Docker Hub username or other registry
   IMAGE_REGISTRY_USER: "mridul017" # Docker Hub username
@@ -85,7 +85,7 @@ jobs:
     # Create ConfigMap with environment variables
     - name: Create ConfigMap for environment variables
       run: |
-        oc create configmap ${APP_NAME}-config \
+        oc create configmap "$APP_NAME-config" \
           --from-literal=DBKEY=${{ secrets.DBKEY }} \
           --from-literal=DBURI=${{ secrets.DBURI }} \
           --from-literal=DBNAME=${{ secrets.DBNAME }} \
@@ -94,11 +94,15 @@ jobs:
           --from-literal=Audience=${{ secrets.AUDIENCE }} \
           --from-literal=SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }} \
           --from-literal=SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }} --dry-run=client -o yaml | oc apply -f -
+      env:
+        APP_NAME: ${{ env.APP_NAME }}
 
     # Inject ConfigMap into the deployment
     - name: Set deployment to use ConfigMap
       run: |
-        oc set env deployment/${{ env.APP_NAME }} --from=configmap/${APP_NAME}-config
+        oc set env deployment/$APP_NAME --from=configmap/$APP_NAME-config
+      env:
+        APP_NAME: ${{ env.APP_NAME }}
 
     # Print out the exposed route (URL) for your deployed application
     - name: Print application URL
