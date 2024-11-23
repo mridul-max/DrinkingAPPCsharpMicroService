@@ -83,7 +83,14 @@ jobs:
       run: |
         # Patch the route to enable TLS edge termination
         oc patch route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -p '{"spec":{"tls":{"termination":"edge", "insecureEdgeTerminationPolicy":"Redirect"}}}'
-    
+        # 8. Enable HTTPS for the route with TLS edge termination and apply annotations
+          
+        # Annotate the route for rate limiting, Swagger rewrite, and HTTP whitelisting
+        oc annotate route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} \
+            haproxy.router.openshift.io/rate-limit-connections=10 \
+            haproxy.router.openshift.io/rewrite-target=/swagger \
+            haproxy.router.openshift.io/whitelist-http=true --overwrite
+
     # Scale the application to ensure multiple pods for load balancing
     - name: Scale Deployment
       run: |
