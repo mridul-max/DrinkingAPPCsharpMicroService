@@ -88,7 +88,7 @@ jobs:
         # Annotate the route for rate limiting, Swagger rewrite, and HTTP whitelisting
         oc annotate route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} \
             haproxy.router.openshift.io/rate-limit-connections=10 \
-            haproxy.router.openshift.io/rewrite-target=/swagger \
+            haproxy.router.openshift.io/rewrite-target=/swagger/ui \
             haproxy.router.openshift.io/whitelist-http=true --overwrite
 
     # Scale the application to ensure multiple pods for load balancing
