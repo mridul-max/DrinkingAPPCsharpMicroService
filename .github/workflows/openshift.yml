@@ -82,7 +82,7 @@ jobs:
     - name: Enable HTTPS for the Route
       run: |
         # Patch the route to enable TLS edge termination
-        oc patch route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -p '{"spec":{"tls":{"termination":"edge"}}}'
+        oc patch route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -p '{"spec":{"tls":{"termination":"edge", "insecureEdgeTerminationPolicy":"Redirect"}}}'
 
         # Optional: Redirect HTTP traffic to HTTPS
         oc annotate route ${{ env.APP_NAME }} haproxy.router.openshift.io/redirect-to-https=true --overwrite
