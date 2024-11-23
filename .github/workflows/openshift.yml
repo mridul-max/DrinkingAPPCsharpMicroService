@@ -78,6 +78,11 @@ jobs:
         namespace: ${{ env.OPENSHIFT_NAMESPACE }}
         port: ${{ env.APP_PORT }}
         
+    # Set OpenAPI HTTPS
+    - name: Set OpenAPI HTTPS
+      run: |
+        oc set env deployment/${{ env.APP_NAME }} AzureFunctionsJobHost__Extensions__OpenApi__ForceHttps=true   
+        
     # Enable HTTPS (TLS Edge Termination) and optional HTTP-to-HTTPS redirection
     - name: Enable HTTPS for the Route
       run: |
@@ -131,11 +136,7 @@ jobs:
       run: |
         oc set env deployment/${{ env.APP_NAME }} SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
         oc set env deployment/${{ env.APP_NAME }} SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }}
-    # Inject OpenApi__HostNames variable
-    - name: Set OpenAPI Hostnames
-      run: |
-        ROUTE=$(oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}')
-        oc set env deployment/${{ env.APP_NAME }} OpenApi__HostNames=$ROUTE
+
     # Print application URL
     - name: Print Application URL
       run: |
