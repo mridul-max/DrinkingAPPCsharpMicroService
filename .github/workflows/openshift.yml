@@ -83,9 +83,6 @@ jobs:
       run: |
         # Patch the route to enable TLS edge termination
         oc patch route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -p '{"spec":{"tls":{"termination":"edge", "insecureEdgeTerminationPolicy":"Redirect"}}}'
-
-        # Optional: Redirect HTTP traffic to HTTPS
-        oc annotate route ${{ env.APP_NAME }} haproxy.router.openshift.io/redirect-to-https=true --overwrite
     
     # Scale the application to ensure multiple pods for load balancing
     - name: Scale Deployment
