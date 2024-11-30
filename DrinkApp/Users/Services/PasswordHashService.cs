@@ -23,9 +23,9 @@ namespace Users.Services
         {
             return BCrypt.Net.BCrypt.HashPassword(Password);
         }
-        public bool ValidatePassword(string Password)
+        public bool ValidatePassword(string providedPassword, string storedHashedPassword)
         {
-            return BCrypt.Net.BCrypt.Verify(Password, HashPassword(Password));
+            return BCrypt.Net.BCrypt.Verify(providedPassword, storedHashedPassword);
         }
         public async Task PasswordResetByTokenCode(ForgetPasswordDTO ForgetPasswordDTO, string PhoneNumber)
         {

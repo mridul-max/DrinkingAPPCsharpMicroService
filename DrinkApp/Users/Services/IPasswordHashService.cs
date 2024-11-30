@@ -10,7 +10,7 @@ namespace Users.Services
     public interface IPasswordHashService
     {
         string HashPassword(string Password);
-        bool ValidatePassword(string Password);
+        bool ValidatePassword(string providedPassword, string storedHashedPassword);
         Task PasswordResetByTokenCode(ForgetPasswordDTO ForgetPasswordDTO, string PhoneNumber);
     }
 }

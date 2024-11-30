@@ -28,26 +28,41 @@ namespace Users.Services
 
         public async Task<List<UserRole>> GetLoginRole(LoginRequest loginRequest)
         {
-            List<UserRole> Roles = new List<UserRole>();
+            List<UserRole> roles = new List<UserRole>();
+
+            // Check if the user is a patient
             var patient = await _patientGenericRepository.GetByPhoneNumber(loginRequest.PhoneNumber);
-            var careGiver = await _careGiverGenericRepository.GetByPhoneNumber(loginRequest.PhoneNumber);
-            if (patient == null && careGiver == null)
+            if (patient != null)
             {
-                throw new NotFoundException("Your phone number or password is incorrecct");
-            }
-            if (patient != null && _passwordHashService.ValidatePassword(patient.Password))
-            {
-                Roles.Add(patient.UserRole);
-            }
-            else if (careGiver != null && _passwordHashService.ValidatePassword(careGiver.Password))
-            {
-                foreach (UserRole u in careGiver.UserRoles)
+                if (_passwordHashService.ValidatePassword(loginRequest.Password, patient.Password))
                 {
-                    Roles.Add(u);
+                    roles.Add(patient.UserRole);
+                    return roles;
                 }
-                return Roles;
+                else
+                {
+                    throw new NotFoundException("Incorrect phone number or password.");
+                }
             }
-            return Roles;
+
+            // Check if the user is a caregiver
+            var caregiver = await _careGiverGenericRepository.GetByPhoneNumber(loginRequest.PhoneNumber);
+            if (caregiver != null)
+            {
+                if (_passwordHashService.ValidatePassword(loginRequest.Password, caregiver.Password))
+                {
+                    roles.AddRange(caregiver.UserRoles);
+                    return roles;
+                }
+                else
+                {
+                    throw new NotFoundException("Incorrect phone number or password.");
+                }
+            }
+
+            // If no user found
+            throw new NotFoundException("Incorrect phone number or password.");
         }
+
     }
 }
