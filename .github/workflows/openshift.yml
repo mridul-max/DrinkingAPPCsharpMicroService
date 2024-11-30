@@ -95,7 +95,7 @@ jobs:
     # Scale the application to ensure multiple pods for load balancing
     - name: Scale Deployment
       run: |
-        oc scale deployment/${{ env.APP_NAME }} --replicas=2
+        oc scale deployment/${{ env.APP_NAME }} --replicas=1
 
     # Set up Horizontal Pod Autoscaler (HPA)
     - name: Configure Horizontal Pod Autoscaler
