@@ -87,8 +87,7 @@ jobs:
         run: |
           IMAGE_PATH="${{ steps.push-image.outputs.image }}:${{ env.IMAGE_TAGS }}"
           echo "Using image path: $IMAGE_PATH"
-          oc new-app --name=${{ env.APP_NAME }} --labels=app=${{ env.APP_NAME }} --image=${IMAGE_PATH} --namespace=${{ env.OPENSHIFT_NAMESPACE }} --port=${{ env.APP_PORT }}
-
+          oc new-app --name=${{ env.APP_NAME }} --labels=app=${{ env.APP_NAME }} --image=${IMAGE_PATH} --namespace=${{ env.OPENSHIFT_NAMESPACE }} 
       # Enable HTTPS for the Route
       - name: Enable HTTPS for the Route
         run: |
