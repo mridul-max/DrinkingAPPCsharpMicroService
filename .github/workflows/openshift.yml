@@ -85,7 +85,7 @@ jobs:
       - name: Create and expose OpenShift app
         id: deploy-and-expose
         run: |
-          IMAGE_PATH="${{ steps.push-image.outputs.image }}:${{ env.IMAGE_TAGS }}"
+          IMAGE_PATH="${{ env.IMAGE_REGISTRY }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAGS }}"
           echo "Using image path: $IMAGE_PATH"
           oc new-app --name=${{ env.APP_NAME }} --labels=app=${{ env.APP_NAME }} --image=${IMAGE_PATH} --namespace=${{ env.OPENSHIFT_NAMESPACE }} 
       # Enable HTTPS for the Route
