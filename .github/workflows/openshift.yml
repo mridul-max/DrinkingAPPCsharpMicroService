@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        namespace: [ "kilo-dev", "kilo-qa", "kilo-prod" ] # Deploy to these namespaces
+        namespace: ["Kilo-dev"] #[ "kilo-dev", "kilo-qa", "kilo-prod" ] # Deploy to these namespaces
 
     env:
       OPENSHIFT_NAMESPACE: ${{ matrix.namespace }}
