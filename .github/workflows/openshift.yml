@@ -81,13 +81,16 @@ jobs:
         run: |
           echo "Image path: ${{ steps.push-image.outputs.image }}"
 
-      # Deploy and expose application
+      # Deploy the application and expose as a service
       - name: Create and expose OpenShift app
         id: deploy-and-expose
-        run: |
-          IMAGE_PATH="${{ steps.push-image.outputs.image }}"
-          echo "Using image path: $IMAGE_PATH"
-          oc new-app --name=${{ env.APP_NAME }} --labels=app=${{ env.APP_NAME }} --image=${IMAGE_PATH} --namespace=${{ env.OPENSHIFT_NAMESPACE }} 
+        uses: redhat-actions/oc-new-app@v1
+        with:
+          app_name: ${{ env.APP_NAME }}
+          image: ${{ steps.push-image.outputs.registry-path }}
+          namespace: ${{ env.OPENSHIFT_NAMESPACE }}
+          port: ${{ env.APP_PORT }}
+          
       # Enable HTTPS for the Route
       - name: Enable HTTPS for the Route
         run: |
