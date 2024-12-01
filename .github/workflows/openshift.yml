@@ -91,6 +91,11 @@ jobs:
           namespace: ${{ env.OPENSHIFT_NAMESPACE }}
           port: ${{ env.APP_PORT }}
           
+      # Set resource requests and limits
+      - name: Set resource requests and limits
+        run: |
+          oc set resources deployment/${{ env.APP_NAME }} --requests=cpu=200m,memory=250Mi --limits=cpu=1,memory=1Gi -n ${{ env.OPENSHIFT_NAMESPACE }}   
+          
       # Enable HTTPS for the Route
       - name: Enable HTTPS for the Route
         run: |
