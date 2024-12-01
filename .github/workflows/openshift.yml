@@ -78,7 +78,8 @@ jobs:
 
       # Debug Image Path (optional for troubleshooting)
       - name: Debug Image Path
-        run: echo "Image path: ${{ steps.push-image.outputs.image }}"
+        run: |
+          echo "Image path: ${{ steps.push-image.outputs.image }}"
 
       # Deploy and expose application
       - name: Create and expose OpenShift app
