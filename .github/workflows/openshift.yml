@@ -106,7 +106,7 @@ jobs:
       # Scale the application to ensure multiple pods for load balancing
       - name: Scale Deployment
         run: |
-          oc scale deployment/${{ env.APP_NAME }} --replicas=3
+          oc scale deployment/${{ env.APP_NAME }} --replicas=1
 
       # Set up Horizontal Pod Autoscaler (HPA)
       - name: Configure Horizontal Pod Autoscaler
@@ -114,7 +114,7 @@ jobs:
           if oc get hpa ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} &>/dev/null; then
             oc delete hpa ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }}
           fi
-          oc autoscale deployment/${{ env.APP_NAME }} --min=3 --max=10 --cpu-percent=70 -n ${{ env.OPENSHIFT_NAMESPACE }}
+          oc autoscale deployment/${{ env.APP_NAME }} --min=1 --max=2 --cpu-percent=70 -n ${{ env.OPENSHIFT_NAMESPACE }}
 
       # Wait for deployment rollout
       - name: Wait for Deployment Rollout
