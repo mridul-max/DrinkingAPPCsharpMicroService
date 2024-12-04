@@ -52,9 +52,20 @@ namespace Users.UserController
             {
                 Logger.LogWarning("Login failed: {Message}", ex.Message);
 
-                // Create a not-found response
-                var response = req.CreateResponse(HttpStatusCode.NotFound);
-                await response.WriteAsJsonAsync(new { Error = "User not found", Details = ex.Message });
+                // Create a response with a 404 status code
+                var response = req.CreateResponse();
+
+                // Create an error object with the exception message
+                var errorResponse = new
+                {
+                    Error = "User not found",
+                    Details = ex.Message
+                };
+
+                // Write the error object as JSON to the response
+                await response.WriteAsJsonAsync(errorResponse);
+                response.StatusCode = HttpStatusCode.NotFound;
+                // Return the response
                 return response;
             }
         }

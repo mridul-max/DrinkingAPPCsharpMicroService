@@ -10,13 +10,13 @@ namespace FluidIntake.Configuration
         public override OpenApiInfo Info { get; set; } = new OpenApiInfo
         {
             Version = "1.0.0",
-            Title = "My example API",
-            Description = "My example API description",
+            Title = "Drink APP",
+            Description = "Omring Drink APP",
             License = new OpenApiLicense
             {
                 Name = "MIT",
                 Url = new Uri("http://opensource.org/licenses/MIT"),
-            }
+            }      
         };
         public override OpenApiVersionType OpenApiVersion { get; set; } = OpenApiVersionType.V3;
     }

@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.Cosmos.Serialization.HybridRow;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
@@ -25,6 +23,7 @@ namespace Users.UserController
     {
         private readonly ILogger<RegisterPatient> _logger;
         private readonly IPatientService _patientService;
+
         public RegisterPatient(ILogger<RegisterPatient> log, IPatientService patientService)
         {
             _logger = log;
@@ -32,16 +31,20 @@ namespace Users.UserController
         }
 
         [Function("RegisterPatient")]
-        [OpenApiParameter("role",In = ParameterLocation.Query, Required = true, Type = typeof(Role), Description = "Patient role define")]
-        [OpenApiParameter("status", In = ParameterLocation.Query, Required = true, Type = typeof(bool), Description = "active status of the patient ")]
+        [OpenApiParameter("role", In = ParameterLocation.Query, Required = true, Type = typeof(Role), Description = "Patient role define")]
+        [OpenApiParameter("status", In = ParameterLocation.Query, Required = true, Type = typeof(bool), Description = "Active status of the patient")]
         [OpenApiOperation(operationId: "RegisterPatient", tags: new[] { "Users" }, Summary = "Register a new user as a patient")]
         [OpenApiRequestBody("application/json", typeof(RegisterPatientDTO), Description = "Registers a new User as a patient.", Example = typeof(RegisterPatientDTOExampleGenerator))]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.Created, contentType: "application/json", bodyType: typeof(PatientResponseDTO), Description = "The OK response with the new user.")]
-        public async Task<IActionResult> Register(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "register/patient")] HttpRequestData req, string role, bool status)
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, contentType: "application/json", bodyType: typeof(object), Description = "Validation errors.")]
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.Conflict, contentType: "application/json", bodyType: typeof(object), Description = "User already exists.")]
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.InternalServerError, contentType: "application/json", bodyType: typeof(object), Description = "Internal server error.")]
+        public async Task<HttpResponseData> Register(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "patients/register")] HttpRequestData req, string role, bool status)
         {
             _logger.LogInformation("Creating new user.");
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var response = req.CreateResponse();
             try
             {
                 RegisterPatientDTOValidator validator = new RegisterPatientDTOValidator();
@@ -49,21 +52,35 @@ namespace Users.UserController
                 var validationResult = validator.Validate(data);
                 if (!validationResult.IsValid)
                 {
-                    return new BadRequestObjectResult(validationResult.Errors.Select(e => new {
+                    _logger.LogWarning("Validation failed: {Errors}", validationResult.Errors);
+                    var errorResponse = validationResult.Errors.Select(e => new
+                    {
                         Field = e.PropertyName,
                         Error = e.ErrorMessage
-                    }));
+                    });
+                    await response.WriteAsJsonAsync(errorResponse);
+                    response.StatusCode = HttpStatusCode.BadRequest;
+                    return response;
                 }
-                var result = await _patientService.RegisteredPatientAsync(data, role, status);
-                var response = req.CreateResponse(HttpStatusCode.Created);
+
+                // Register the patient
+                var result = await _patientService.RegisteredPatientAsync(data, role, status);               
                 await response.WriteAsJsonAsync(result);
-                return new CreatedAtActionResult("Add Patient", "RegisterPatient.cs", "none", result);
+                response.StatusCode = HttpStatusCode.Created;
+                return response;
             }
             catch (RegisterUserExistingException ex)
             {
-                return new UserCreationConflictObjectResult(ex.Message);
+                _logger.LogWarning("User registration failed: {Message}", ex.Message);
+                var errorResponse = new
+                {
+                    Error = "User already exists",
+                    Details = ex.Message
+                };
+                await response.WriteAsJsonAsync(errorResponse);
+                response.StatusCode = HttpStatusCode.Conflict;
+                return response;
             }
         }
     }
 }
-
