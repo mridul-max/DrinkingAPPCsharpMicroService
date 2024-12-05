@@ -6,6 +6,7 @@ using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
+using System;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -39,18 +40,23 @@ namespace Users.UserController
         [OpenApiOperation(operationId: "RegisterCareGiver", tags: new[] { "Users" }, Summary = "Register a new user as a CareGiver")]
         [OpenApiRequestBody("application/json", typeof(RegisterCareGiverDTO), Description = "Registers a new User as a CareGiver.", Example = typeof(RegisterCareGiverDTOExampleGenerator))]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.Created, contentType: "application/json", bodyType: typeof(CareGiverResponseDTO), Description = "The OK response with the new user.", Example = typeof(RegisterCareGiverDTOExampleGenerator))]
-        public async Task<IActionResult> Register(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "register/caregiver")] HttpRequestData req, string role, bool status, FunctionContext Context)
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, contentType: "application/json", bodyType: typeof(object), Description = "Validation errors.")]
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.Conflict, contentType: "application/json", bodyType: typeof(object), Description = "User already exists.")]
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.InternalServerError, contentType: "application/json", bodyType: typeof(object), Description = "Internal server error.")]
+        public async Task<HttpResponseData> Register(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "caregivers/register")] HttpRequestData req, string role, bool status, FunctionContext Context)
         {
             _logger.LogInformation("Creating new CareGiver.");
             ClaimsPrincipal claimsPrincipal = Context.GetUser();
             if (claimsPrincipal == null)
             {
-                return new UnauthorizedResult();
+                _logger.LogWarning("Unauthorized access attempt.");
+                return CreateResponseData(req, HttpStatusCode.Unauthorized, "Unauthorized", "Authentication is required.");
             }
             if (!claimsPrincipal.IsInRole(Role.CARE_GIVER.ToString()) && !claimsPrincipal.IsInRole(Role.ADMIN.ToString()))
             {
-                return new ForbidResult(HttpStatusCode.Forbidden.ToString());
+                _logger.LogWarning("Forbidden access attempt by user.");
+                return CreateResponseData(req, HttpStatusCode.Forbidden, "Forbidden", "You do not have permission to perform this action.");
             }
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             try
@@ -60,18 +66,44 @@ namespace Users.UserController
                 var validationResult = validator.Validate(data);
                 if (!validationResult.IsValid)
                 {
-                    return new BadRequestObjectResult(validationResult.Errors.Select(e => new {
+                    _logger.LogWarning("Validation failed: {Errors}", validationResult.Errors);
+                    return CreateResponseData(req, HttpStatusCode.BadRequest, "Validation Failed", validationResult.Errors.Select(e => new
+                    {
                         Field = e.PropertyName,
                         Error = e.ErrorMessage
                     }));
                 }
-                var response = await _careGiverService.RegisteredCareGiverAsync(data, role, status);
-                return new CreatedAtActionResult("Add CareGiver", "RegisterCareGiver.cs", "register/careGiver", response);
+                // Process registration
+                var result = await _careGiverService.RegisteredCareGiverAsync(data, role, status);
+
+                // Return success response
+                var response = req.CreateResponse();
+                await response.WriteAsJsonAsync(result);
+                response.StatusCode = HttpStatusCode.Created;           
+                return response;
             }
             catch (RegisterUserExistingException ex)
             {
-                return new UserCreationConflictObjectResult(ex.Message);
+                _logger.LogWarning("Registration conflict: {Message}", ex.Message);
+                return CreateResponseData(req, HttpStatusCode.Conflict, "User already exists", ex.Message);
             }
+            catch (Exception ex)
+            {
+                _logger.LogError("An unexpected error occurred: {Message}", ex.Message);
+                return CreateResponseData(req, HttpStatusCode.InternalServerError, "Internal Server Error", "An unexpected error occurred. Please try again later.");
+            }
+        }
+        private HttpResponseData CreateResponseData(HttpRequestData req, HttpStatusCode statusCode, string error, object details)
+        {
+            var response = req.CreateResponse();
+            var errorResponse = new
+            {
+                Error = error,
+                Details = details
+            };
+            response.WriteAsJsonAsync(errorResponse);
+            response.StatusCode = statusCode;
+            return response;
         }
     }
 }
