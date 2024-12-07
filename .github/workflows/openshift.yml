@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        namespace: ["kilo-dev"] #[ "kilo-dev", "kilo-qa", "kilo-prod" ] # Deploy to these namespaces
+        namespace: ["kilo-dev"] # Add other namespaces as needed
 
     env:
       OPENSHIFT_NAMESPACE: ${{ matrix.namespace }}
@@ -76,10 +76,11 @@ jobs:
           insecure_skip_tls_verify: true
           namespace: ${{ env.OPENSHIFT_NAMESPACE }}
 
-      # Debug Image Path (optional for troubleshooting)
-      - name: Debug Image Path
+      # Clean up old deployments
+      - name: Clean up old deployments and ReplicaSets
         run: |
-          echo "Image path: ${{ steps.push-image.outputs.image }}"
+          oc delete deployment/${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} --ignore-not-found
+          oc delete replicasets -l app=${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} --ignore-not-found
 
       # Deploy the application and expose as a service
       - name: Create and expose OpenShift app
@@ -90,12 +91,12 @@ jobs:
           image: ${{ env.IMAGE_REGISTRY }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAGS }}
           namespace: ${{ env.OPENSHIFT_NAMESPACE }}
           port: ${{ env.APP_PORT }}
-          
+
       # Set resource requests and limits
       - name: Set resource requests and limits
         run: |
-          oc set resources deployment/${{ env.APP_NAME }} --requests=cpu=200m,memory=250Mi --limits=cpu=1,memory=1Gi -n ${{ env.OPENSHIFT_NAMESPACE }}   
-          
+          oc set resources deployment/${{ env.APP_NAME }} --requests=cpu=200m,memory=250Mi --limits=cpu=1,memory=1Gi -n ${{ env.OPENSHIFT_NAMESPACE }}
+
       # Enable HTTPS for the Route
       - name: Enable HTTPS for the Route
         run: |
@@ -108,17 +109,12 @@ jobs:
           ROUTE=$(oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}')
           oc set env deployment/${{ env.APP_NAME }} OpenApi__HostNames=https://$ROUTE
 
-      # Set environment variables for HTTPS
-      - name: Set environment variables for HTTPS
-        run: |
-          oc set env deployment/${{ env.APP_NAME }} AzureFunctionsJobHost__Extensions__OpenApi__ForceHttps=true    
-
-      # Scale the application to ensure multiple pods for load balancing
+      # Scale Deployment
       - name: Scale Deployment
         run: |
           oc scale deployment/${{ env.APP_NAME }} --replicas=1
 
-      # Set up Horizontal Pod Autoscaler (HPA)
+      # Configure Horizontal Pod Autoscaler
       - name: Configure Horizontal Pod Autoscaler
         run: |
           if oc get hpa ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} &>/dev/null; then
@@ -126,7 +122,7 @@ jobs:
           fi
           oc autoscale deployment/${{ env.APP_NAME }} --min=1 --max=2 --cpu-percent=70 -n ${{ env.OPENSHIFT_NAMESPACE }}
 
-      # Wait for deployment rollout
+      # Wait for Deployment Rollout
       - name: Wait for Deployment Rollout
         run: |
           oc rollout status deployment/${{ env.APP_NAME }} --watch -n ${{ env.OPENSHIFT_NAMESPACE }}
@@ -143,7 +139,7 @@ jobs:
           oc set env deployment/${{ env.APP_NAME }} SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }} -n ${{ env.OPENSHIFT_NAMESPACE }}
           oc set env deployment/${{ env.APP_NAME }} SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }} -n ${{ env.OPENSHIFT_NAMESPACE }}
 
-      # Print application URL
+      # Print Application URL
       - name: Print Application URL
         run: |
           ROUTE=$(oc get route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -o jsonpath='{.spec.host}')
