@@ -1,71 +1,118 @@
-﻿using Microsoft.AspNetCore.Routing;
+﻿using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Threading.Tasks;
-using Users.Model.DTO;
-using Users.Services;
 using Microsoft.OpenApi.Models;
+using System;
 using System.IO;
-using Microsoft.AspNetCore.Mvc;
-using Users.Model.CustomException;
-using Users.Model;
+using System.Net;
 using System.Security.Claims;
-using Users.Security;
+using System.Threading.Tasks;
+using Users.Model;
+using Users.Model.CustomException;
 using Users.Model.DTO.RespononseDTO;
+using Users.Security;
+using Users.Services;
 
 namespace Users.UserController
 {
     public class AssignPatient
     {
-        private ILogger Logger { get; }
-        private ICareGiverService _careGiverService { get; }
-        public AssignPatient(ILogger<AssignPatient> log, ICareGiverService careGiverService)
+        private readonly ILogger<AssignPatient> _logger;
+        private readonly ICareGiverService _careGiverService;
+
+        public AssignPatient(ILogger<AssignPatient> logger, ICareGiverService careGiverService)
         {
-            Logger = log;
+            _logger = logger;
             _careGiverService = careGiverService;
         }
 
         [Function("AssignPatientToCareGiver")]
         [UsersAuth]
-        [OpenApiOperation(operationId: "AssignPatient", tags: new[] { "Users" }, Summary = "Assigns a patient to the list of a specific care giver")]
-        [OpenApiParameter("caregiverId", In = ParameterLocation.Query, Required = true, Type = typeof(Guid), Description = "The Guid of the caregiver")]
-        [OpenApiParameter("patientId", In = ParameterLocation.Query, Required = true, Type = typeof(Guid), Description = "The Guid of the Patient to assign Caregiver")]
-        [OpenApiResponseWithBody(statusCode: HttpStatusCode.Created, contentType: "application/json", bodyType: typeof(CareGiverResponseDTO), Description = "The OK response")]
-        public async Task<IActionResult> Assign(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "patient/assigncaregiver")] HttpRequestData req, Guid caregiverId,Guid patientId, FunctionContext Context)
+        [OpenApiOperation(
+            operationId: "AssignPatient",
+            tags: new[] { "Users" },
+            Summary = "Assigns a patient to a specific caregiver"
+        )]
+        [OpenApiParameter("caregiverId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The ID of the caregiver")]
+        [OpenApiParameter("patientId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The ID of the patient to assign to the caregiver")]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.Created,
+            contentType: "application/json",
+            bodyType: typeof(CareGiverResponseDTO),
+            Description = "Patient successfully assigned to caregiver"
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.NotFound,
+            contentType: "application/json",
+            bodyType: typeof(object),
+            Description = "Caregiver or patient not found"
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.Unauthorized,
+            contentType: "application/json",
+            bodyType: typeof(object),
+            Description = "Unauthorized"
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.Forbidden,
+            contentType: "application/json",
+            bodyType: typeof(object),
+            Description = "Forbidden"
+        )]
+        public async Task<HttpResponseData> Assign(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "caregivers/{caregiverId}/patients/{patientId}/assign")] HttpRequestData req,
+            Guid caregiverId,
+            Guid patientId,
+            FunctionContext context)
         {
-            ClaimsPrincipal claimsPrincipal = Context.GetUser();
+            _logger.LogInformation("Starting patient assignment to caregiver.");
+
+            var claimsPrincipal = context.GetUser();
             if (claimsPrincipal == null)
             {
-                return new UnauthorizedResult();
+                _logger.LogWarning("Unauthorized access attempt.");
+                return CreateResponse(req, HttpStatusCode.Unauthorized, "Unauthorized access.");
             }
-            Logger.LogInformation("Assigning care giver to patient.");
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            HttpResponseData response = req.CreateResponse();
+
+            if (!claimsPrincipal.IsInRole(Role.ADMIN.ToString()) && !claimsPrincipal.IsInRole(Role.CARE_GIVER.ToString()))
+            {
+                _logger.LogWarning("Forbidden access attempt by user.");
+                return CreateResponse(req, HttpStatusCode.Forbidden, "You do not have permission to perform this action.");
+            }
+
             try
             {
-                if (claimsPrincipal.IsInRole(Role.ADMIN.ToString()) || claimsPrincipal.IsInRole(Role.CARE_GIVER.ToString()))
-                {
-                    await _careGiverService.AssignPatient(caregiverId, patientId);
-                    var caregiver = _careGiverService.GetOneCareGiver(caregiverId);
-                    return new CreatedAtActionResult("AssignPatient", "AssignPatient.cs", "none", caregiver);
-                }
-                else
-                {
-                    return new ForbidResult(HttpStatusCode.Forbidden.ToString());
-                }
+                // Assign patient to caregiver
+                await _careGiverService.AssignPatient(caregiverId, patientId);
+                var caregiver = await _careGiverService.GetOneCareGiver(caregiverId);
+
+                // Return success response
+                var response = req.CreateResponse();
+                await response.WriteAsJsonAsync("A patients successfully asigned to a caregiver");
+                response.StatusCode = HttpStatusCode.Created;    
+                _logger.LogInformation("Patient successfully assigned to caregiver.");
+                return response;
             }
             catch (NotFoundException ex)
             {
-                return new EntryNotFoundObjectResult(ex.Message);
+                _logger.LogWarning("Entity not found: {Message}", ex.Message);
+                return CreateResponse(req, HttpStatusCode.NotFound, ex.Message);
             }
+            catch (Exception ex)
+            {
+                _logger.LogError("An unexpected error occurred: {Message}", ex.Message);
+                return CreateResponse(req, HttpStatusCode.InternalServerError, "An unexpected error occurred.");
+            }
+        }
+    
+        private HttpResponseData CreateResponse(HttpRequestData req, HttpStatusCode statusCode, string message)
+        {
+            var response = req.CreateResponse();
+            var errorResponse = new { Message = message };
+            response.WriteAsJsonAsync(errorResponse);
+            response.StatusCode = statusCode;
+            return response;
         }
     }
 }
