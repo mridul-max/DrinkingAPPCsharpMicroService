@@ -80,7 +80,7 @@ jobs:
       - name: Clean up old deployments and ReplicaSets
         run: |
           # Clean up old resources if they exist
-          oc delete route ${env.APP_NAME} --ignore-not-found -n ${env.OPENSHIFT_NAMESPACE}
+          oc delete route/${env.APP_NAME} --ignore-not-found -n ${env.OPENSHIFT_NAMESPACE}
           oc delete service/${{ env.APP_NAME }} --ignore-not-found -n ${{ env.OPENSHIFT_NAMESPACE }}
           oc delete deployment/${{ env.APP_NAME }} --ignore-not-found -n ${{ env.OPENSHIFT_NAMESPACE }}
           oc delete replicasets -l app=${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} --ignore-not-found
