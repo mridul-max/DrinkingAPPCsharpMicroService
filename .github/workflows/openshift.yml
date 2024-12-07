@@ -75,7 +75,22 @@ jobs:
           openshift_token: ${{ secrets.OPENSHIFT_TOKEN }}
           insecure_skip_tls_verify: true
           namespace: ${{ env.OPENSHIFT_NAMESPACE }}
+          
+      # Create Docker Pull Secret
+      - name: Create Docker Pull Secret
+        run: |
+          oc create secret docker-registry docker-hub-secret \
+            --docker-server=${{ env.IMAGE_REGISTRY }} \
+            --docker-username=${{ env.IMAGE_REGISTRY_USER }} \
+            --docker-password=${{ secrets.IMAGE_REGISTRY_PASSWORD }} \
+            --docker-email=mridulhasan157@gmail,com \
+            -n ${{ env.OPENSHIFT_NAMESPACE }}
 
+      # Link Pull Secret to Service Account
+      - name: Link Pull Secret to Service Account
+        run: |
+          oc secrets link default docker-hub-secret --for=pull -n ${{ env.OPENSHIFT_NAMESPACE }}
+          
       # Clean up old deployments
       - name: Clean up old deployments and ReplicaSets
         run: |
