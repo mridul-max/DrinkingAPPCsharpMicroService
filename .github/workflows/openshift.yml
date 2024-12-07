@@ -110,9 +110,9 @@ jobs:
           oc set env deployment/${{ env.APP_NAME }} OpenApi__HostNames=https://$ROUTE
 
       # Scale Deployment
-      - name: Scale Deployment
-        run: |
-          oc scale deployment/${{ env.APP_NAME }} --replicas=1
+      #- name: Scale Deployment
+      #  run: |
+       #   oc scale deployment/${{ env.APP_NAME }} --replicas=1
 
       # Configure Horizontal Pod Autoscaler
       - name: Configure Horizontal Pod Autoscaler
