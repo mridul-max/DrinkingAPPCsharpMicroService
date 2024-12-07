@@ -113,18 +113,18 @@ jobs:
           ROUTE=$(oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}')
           oc set env deployment/${{ env.APP_NAME }} OpenApi__HostNames=https://$ROUTE
 
-      # Scale Deployment
-      #- name: Scale Deployment
-      #  run: |
-       #   oc scale deployment/${{ env.APP_NAME }} --replicas=1
+      #Scale Deployment
+      - name: Scale Deployment
+        run: |
+          oc scale deployment/${{ env.APP_NAME }} --replicas=1
 
       # Configure Horizontal Pod Autoscaler
-      - name: Configure Horizontal Pod Autoscaler
-        run: |
-          if oc get hpa ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} &>/dev/null; then
-            oc delete hpa ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }}
-          fi
-          oc autoscale deployment/${{ env.APP_NAME }} --min=1 --max=2 --cpu-percent=70 -n ${{ env.OPENSHIFT_NAMESPACE }}
+     # - name: Configure Horizontal Pod Autoscaler
+       # run: |
+         # if oc get hpa ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} &>/dev/null; then
+          #  oc delete hpa ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }}
+         # fi
+          #oc autoscale deployment/${{ env.APP_NAME }} --min=1 --max=2 --cpu-percent=70 -n ${{ env.OPENSHIFT_NAMESPACE }}
 
       # Wait for Deployment Rollout
       - name: Wait for Deployment Rollout
