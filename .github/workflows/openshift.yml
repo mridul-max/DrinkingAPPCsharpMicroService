@@ -81,16 +81,14 @@ jobs:
         run: |
           oc delete deployment/${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} --ignore-not-found
           oc delete replicasets -l app=${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} --ignore-not-found
-
-      # Deploy the application and expose as a service
-      - name: Create and expose OpenShift app
-        id: deploy-and-expose
-        uses: redhat-actions/oc-new-app@v1
-        with:
-          app_name: ${{ env.APP_NAME }}
-          image: ${{ env.IMAGE_REGISTRY }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAGS }}
-          namespace: ${{ env.OPENSHIFT_NAMESPACE }}
-          port: ${{ env.APP_PORT }}
+          
+      # Step 9: Deploy and Expose OpenShift App
+      - name: Deploy OpenShift App
+        run: |
+          # Deploy the application from the Docker image
+          oc new-app ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REGISTRY_USER }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAGS }} \
+            --name=${{ env.APP_NAME }} \
+            -n ${{ env.OPENSHIFT_NAMESPACE }}
 
       # Set resource requests and limits
       - name: Set resource requests and limits
@@ -100,6 +98,8 @@ jobs:
       # Enable HTTPS for the Route
       - name: Enable HTTPS for the Route
         run: |
+          # Expose the service and enable HTTPS with TLS edge termination
+          oc expose svc/${{ env.APP_NAME }} --port=${{ env.APP_PORT }} -n ${{ env.OPENSHIFT_NAMESPACE }}
           oc patch route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -p '{"spec":{"tls":{"termination":"edge"}}}'
           oc annotate route ${{ env.APP_NAME }} haproxy.router.openshift.io/redirect-to-https=true --overwrite
 
