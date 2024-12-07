@@ -100,7 +100,12 @@ namespace Users.Services
             {
                 throw new NotFoundException("The id Can not be Empty");
             }
-            var caregiver = await _careGiverGenericRepository.GetByIdAsync(id);            
+            var caregiver = await _careGiverGenericRepository.GetByIdAsync(id);
+            // Check if the caregiver is null
+            if (caregiver == null)
+            {
+                throw new NotFoundException($"No caregiver found with the id: {id}");
+            }
             return MapDTOToCareGiverResponse(caregiver);
         }
         public async Task<List<CareGiverResponseDTO>> GetAllCareGivers()
@@ -118,8 +123,7 @@ namespace Users.Services
             else
             {
                 throw new NotFoundException("Could not find caregivers");
-            }
-            
+            } 
 
         }
     }

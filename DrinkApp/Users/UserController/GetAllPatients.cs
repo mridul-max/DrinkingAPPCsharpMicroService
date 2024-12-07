@@ -1,14 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.Functions.Worker;
+﻿using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 using Users.Model;
 using Users.Model.CustomException;
@@ -29,34 +26,84 @@ namespace Users.UserController
             _patientService = patientService;
         }
 
-        [Function("GetAllPatient")]
+        [Function("GetAllPatients")]
         [UsersAuth]
-        [OpenApiOperation(operationId: "Gets All Patients", tags: new[] { "Users" }, Summary = "Gets Patients")]
-        [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(List<PatientResponseDTO>), Description = "The OK response with list of Patients")]
-        public async Task<IActionResult> RunDailyGoalCheck(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "patients")] HttpRequestData req, FunctionContext Context)
+        [OpenApiOperation(
+            operationId: "GetAllPatients",
+            tags: new[] { "Patients" },
+            Summary = "Retrieve all patients",
+            Description = "Fetches the list of all patients. Requires Admin or Caregiver role."
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.OK,
+            contentType: "application/json",
+            bodyType: typeof(List<PatientResponseDTO>),
+            Description = "The list of patients."
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.Unauthorized,
+            contentType: "application/json",
+            bodyType: typeof(object),
+            Description = "Unauthorized access."
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.Forbidden,
+            contentType: "application/json",
+            bodyType: typeof(object),
+            Description = "Access forbidden for the current user."
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.NotFound,
+            contentType: "application/json",
+            bodyType: typeof(object),
+            Description = "No patients found."
+        )]
+        public async Task<HttpResponseData> GetPatients(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "patients")] HttpRequestData req,
+            FunctionContext context)
         {
-            ClaimsPrincipal claimsPrincipal = Context.GetUser();
+            ClaimsPrincipal claimsPrincipal = context.GetUser();
             if (claimsPrincipal == null)
             {
-                return new UnauthorizedResult();
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Unauthorized, new
+                {
+                    Error = "Unauthorized",
+                    Details = "You must be logged in to access this resource."
+                });
             }
+
             try
             {
                 if (claimsPrincipal.IsInRole(Role.ADMIN.ToString()) || claimsPrincipal.IsInRole(Role.CARE_GIVER.ToString()))
                 {
-                    var response = await _patientService.GetAllPatients();
-                    return new CreatedAtActionResult("Get All Patient", "GetAllPatients.cs", "none", response);
+                    var patients = await _patientService.GetAllPatients();
+                    return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.OK, patients);
                 }
                 else
                 {
-                    return new ForbidResult(HttpStatusCode.Forbidden.ToString());
+                    return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Forbidden, new
+                    {
+                        Error = "Forbidden",
+                        Details = "You do not have permission to access this resource."
+                    });
                 }
-
             }
-            catch (NotFoundException e)
+            catch (NotFoundException ex)
             {
-                return new EntryNotFoundObjectResult(e.Message);
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.NotFound, new
+                {
+                    Error = "Not Found",
+                    Details = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("An unexpected error occurred: {Message}", ex.Message);
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.InternalServerError, new
+                {
+                    Error = "Internal Server Error",
+                    Details = "An error occurred while processing your request."
+                });
             }
         }
     }

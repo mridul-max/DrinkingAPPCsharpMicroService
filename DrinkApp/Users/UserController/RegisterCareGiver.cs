@@ -37,7 +37,7 @@ namespace Users.UserController
         [UsersAuth]
         [OpenApiParameter("role", In = ParameterLocation.Query, Required = true, Type = typeof(Role), Description = "caregiver role define")]
         [OpenApiParameter("status", In = ParameterLocation.Query, Required = true, Type = typeof(bool), Description = "active status of the caregiver ")]
-        [OpenApiOperation(operationId: "RegisterCareGiver", tags: new[] { "Users" }, Summary = "Register a new user as a CareGiver")]
+        [OpenApiOperation(operationId: "RegisterCareGiver", tags: new[] { "CareGivers" }, Summary = "Register a new user as a CareGiver")]
         [OpenApiRequestBody("application/json", typeof(RegisterCareGiverDTO), Description = "Registers a new User as a CareGiver.", Example = typeof(RegisterCareGiverDTOExampleGenerator))]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.Created, contentType: "application/json", bodyType: typeof(CareGiverResponseDTO), Description = "The OK response with the new user.", Example = typeof(RegisterCareGiverDTOExampleGenerator))]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, contentType: "application/json", bodyType: typeof(object), Description = "Validation errors.")]
@@ -51,12 +51,12 @@ namespace Users.UserController
             if (claimsPrincipal == null)
             {
                 _logger.LogWarning("Unauthorized access attempt.");
-                return CreateResponseData(req, HttpStatusCode.Unauthorized, "Unauthorized", "Authentication is required.");
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Unauthorized, "Unauthorized, Authentication is required.");
             }
             if (!claimsPrincipal.IsInRole(Role.CARE_GIVER.ToString()) && !claimsPrincipal.IsInRole(Role.ADMIN.ToString()))
             {
                 _logger.LogWarning("Forbidden access attempt by user.");
-                return CreateResponseData(req, HttpStatusCode.Forbidden, "Forbidden", "You do not have permission to perform this action.");
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Forbidden,"Forbidden You do not have permission to perform this action.");
             }
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             try
@@ -67,7 +67,7 @@ namespace Users.UserController
                 if (!validationResult.IsValid)
                 {
                     _logger.LogWarning("Validation failed: {Errors}", validationResult.Errors);
-                    return CreateResponseData(req, HttpStatusCode.BadRequest, "Validation Failed", validationResult.Errors.Select(e => new
+                    return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.BadRequest, validationResult.Errors.Select(e => new
                     {
                         Field = e.PropertyName,
                         Error = e.ErrorMessage
@@ -85,25 +85,13 @@ namespace Users.UserController
             catch (RegisterUserExistingException ex)
             {
                 _logger.LogWarning("Registration conflict: {Message}", ex.Message);
-                return CreateResponseData(req, HttpStatusCode.Conflict, "User already exists", ex.Message);
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Conflict, ex.Message);
             }
             catch (Exception ex)
             {
                 _logger.LogError("An unexpected error occurred: {Message}", ex.Message);
-                return CreateResponseData(req, HttpStatusCode.InternalServerError, "Internal Server Error", "An unexpected error occurred. Please try again later.");
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.InternalServerError, "\"Internal Server Error\" An unexpected error occurred. Please try again later.");
             }
-        }
-        private HttpResponseData CreateResponseData(HttpRequestData req, HttpStatusCode statusCode, string error, object details)
-        {
-            var response = req.CreateResponse();
-            var errorResponse = new
-            {
-                Error = error,
-                Details = details
-            };
-            response.WriteAsJsonAsync(errorResponse);
-            response.StatusCode = statusCode;
-            return response;
         }
     }
 }

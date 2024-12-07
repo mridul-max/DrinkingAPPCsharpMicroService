@@ -1,68 +1,116 @@
-﻿using Microsoft.AspNetCore.Routing;
-using Microsoft.Azure.Functions.Worker.Http;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
-using Users.Model.DTO;
-using Users.Services;
-using Users.Security;
-using Users.Model;
-using Microsoft.AspNetCore.Mvc;
-using Users.Model.CustomException;
 using System.Security.Claims;
+using System.Threading.Tasks;
+using Users.Model;
+using Users.Model.CustomException;
 using Users.Model.DTO.RespononseDTO;
+using Users.Security;
+using Users.Services;
 
 namespace Users.UserController
 {
     public class GetCareGiver
     {
-        private ILogger Logger { get; }
-        private ICareGiverService _careGiverService { get; }
+        private readonly ILogger<GetCareGiver> _logger;
+        private readonly ICareGiverService _careGiverService;
 
-        public GetCareGiver(ILogger<GetCareGiver> log, ICareGiverService careGiverService)
+        public GetCareGiver(ILogger<GetCareGiver> logger, ICareGiverService careGiverService)
         {
-            Logger = log;
+            _logger = logger;
             _careGiverService = careGiverService;
         }
 
         [Function("GetCareGiver")]
         [UsersAuth]
-        [OpenApiOperation(operationId: "Gets Caregiver", tags: new[] { "Users" }, Summary = "Gets Caregiver by Id")]
-        [OpenApiParameter("Guid", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "Id of the Caregiver")]
-        [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(CareGiverResponseDTO), Description = "The OK response with a caregiver")]
-        public async Task<IActionResult> RunDailyGoalCheck(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "caregiver/getcaregiver/{Guid}")] HttpRequestData req, Guid Guid, FunctionContext Context)
+        [OpenApiOperation(
+            operationId: "GetCareGiverById",
+            tags: new[] { "CareGivers" },
+            Summary = "Retrieve a caregiver by their ID.",
+            Description = "Returns details of a caregiver if the requesting user is authorized."
+        )]
+        [OpenApiParameter(
+            name: "caregiverId",
+            In = ParameterLocation.Path,
+            Required = true,
+            Type = typeof(Guid),
+            Description = "The unique identifier of the caregiver."
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.OK,
+            contentType: "application/json",
+            bodyType: typeof(CareGiverResponseDTO),
+            Description = "Details of the requested caregiver."
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.NotFound,
+            contentType: "application/json",
+            bodyType: typeof(object),
+            Description = "Caregiver not found."
+        )]
+        [OpenApiResponseWithBody(
+            statusCode: HttpStatusCode.Forbidden,
+            contentType: "application/json",
+            bodyType: typeof(object),
+            Description = "Access denied for the current user."
+        )]
+        public async Task<HttpResponseData> RunAsync(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "caregivers/{caregiverId}")] HttpRequestData req,
+            Guid caregiverId,
+            FunctionContext context)
         {
-            ClaimsPrincipal claimsPrincipal = Context.GetUser();
+            ClaimsPrincipal claimsPrincipal = context.GetUser();
             if (claimsPrincipal == null)
             {
-                return new UnauthorizedResult();
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Unauthorized, new
+                {
+                    Error = "Unauthorized",
+                    Details = "Authentication is required."
+                });
             }
+
+            _logger.LogInformation("Retrieving caregiver details for ID: {CaregiverId}", caregiverId);
+
             try
             {
-                if (claimsPrincipal.IsInRole(Role.ADMIN.ToString())|| claimsPrincipal.IsInRole(Role.CARE_GIVER.ToString()))
+                // Authorization check
+                if (claimsPrincipal.IsInRole(Role.ADMIN.ToString()) || claimsPrincipal.IsInRole(Role.CARE_GIVER.ToString()))
                 {
-                    var response = await _careGiverService.GetOneCareGiver(Guid);
-                    return new CreatedAtActionResult("Get Caregiver", "GetCareGiver.cs", "none", response);
+                    var caregiver = await _careGiverService.GetOneCareGiver(caregiverId);
+                    return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.OK, caregiver);
                 }
                 else
                 {
-                    return new ForbidResult(HttpStatusCode.Forbidden.ToString());
+                    return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Forbidden, new
+                    {
+                        Error = "Forbidden",
+                        Details = "You do not have access to this resource."
+                    });
                 }
-                
             }
-            catch (NotFoundException e)
+            catch (NotFoundException ex)
             {
-                return new EntryNotFoundObjectResult(e.Message);
+                _logger.LogWarning("Caregiver not found: {Message}", ex.Message);
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.NotFound, new
+                {
+                    Error = "Not Found",
+                    Details = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Unexpected error occurred: {Message}", ex.Message);
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.InternalServerError, new
+                {
+                    Error = "Internal Server Error",
+                    Details = "An error occurred while processing the request."
+                });
             }
         }
     }

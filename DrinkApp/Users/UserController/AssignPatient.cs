@@ -31,7 +31,7 @@ namespace Users.UserController
         [UsersAuth]
         [OpenApiOperation(
             operationId: "AssignPatient",
-            tags: new[] { "Users" },
+            tags: new[] { "Patients" },
             Summary = "Assigns a patient to a specific caregiver"
         )]
         [OpenApiParameter("caregiverId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The ID of the caregiver")]
@@ -72,13 +72,13 @@ namespace Users.UserController
             if (claimsPrincipal == null)
             {
                 _logger.LogWarning("Unauthorized access attempt.");
-                return CreateResponse(req, HttpStatusCode.Unauthorized, "Unauthorized access.");
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Unauthorized, "Unauthorized access.");
             }
 
             if (!claimsPrincipal.IsInRole(Role.ADMIN.ToString()) && !claimsPrincipal.IsInRole(Role.CARE_GIVER.ToString()))
             {
                 _logger.LogWarning("Forbidden access attempt by user.");
-                return CreateResponse(req, HttpStatusCode.Forbidden, "You do not have permission to perform this action.");
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.Forbidden, "You do not have permission to perform this action.");
             }
 
             try
@@ -97,22 +97,13 @@ namespace Users.UserController
             catch (NotFoundException ex)
             {
                 _logger.LogWarning("Entity not found: {Message}", ex.Message);
-                return CreateResponse(req, HttpStatusCode.NotFound, ex.Message);
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.NotFound, ex.Message);
             }
             catch (Exception ex)
             {
                 _logger.LogError("An unexpected error occurred: {Message}", ex.Message);
-                return CreateResponse(req, HttpStatusCode.InternalServerError, "An unexpected error occurred.");
+                return HttpResponseHelper.CreateResponseData(req, HttpStatusCode.InternalServerError, "An unexpected error occurred.");
             }
-        }
-    
-        private HttpResponseData CreateResponse(HttpRequestData req, HttpStatusCode statusCode, string message)
-        {
-            var response = req.CreateResponse();
-            var errorResponse = new { Message = message };
-            response.WriteAsJsonAsync(errorResponse);
-            response.StatusCode = statusCode;
-            return response;
         }
     }
 }

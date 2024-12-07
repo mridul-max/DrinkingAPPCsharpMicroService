@@ -33,7 +33,7 @@ namespace Users.UserController
         [Function("RegisterPatient")]
         [OpenApiParameter("role", In = ParameterLocation.Query, Required = true, Type = typeof(Role), Description = "Patient role define")]
         [OpenApiParameter("status", In = ParameterLocation.Query, Required = true, Type = typeof(bool), Description = "Active status of the patient")]
-        [OpenApiOperation(operationId: "RegisterPatient", tags: new[] { "Users" }, Summary = "Register a new user as a patient")]
+        [OpenApiOperation(operationId: "RegisterPatient", tags: new[] { "Patients" }, Summary = "Register a new user as a patient")]
         [OpenApiRequestBody("application/json", typeof(RegisterPatientDTO), Description = "Registers a new User as a patient.", Example = typeof(RegisterPatientDTOExampleGenerator))]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.Created, contentType: "application/json", bodyType: typeof(PatientResponseDTO), Description = "The OK response with the new user.")]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, contentType: "application/json", bodyType: typeof(object), Description = "Validation errors.")]
