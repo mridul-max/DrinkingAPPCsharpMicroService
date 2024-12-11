@@ -9,7 +9,7 @@ env:
   OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
   APP_NAME: "my-azure-function" # Application name
   APP_PORT: "8080" # Port your app listens to
-  IMAGE_REGISTRY: "docker.io/mridul017" # Docker Hub username or other registry
+  IMAGE_REGISTRY: "docker.io" # Docker Hub username or other registry
   IMAGE_REGISTRY_USER: "mridul017"
   IMAGE_REGISTRY_PASSWORD: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
   IMAGE_TAGS: ${{ github.sha }} # Default tag using git commit hash
@@ -51,7 +51,7 @@ jobs:
         with:
           image: ${{ steps.build-image.outputs.image }}
           tags: ${{ steps.build-image.outputs.tags }}
-          registry: ${{ env.IMAGE_REGISTRY }}
+          registry: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REGISTRY_USER }}
           username: ${{ env.IMAGE_REGISTRY_USER }}
           password: ${{ secrets.IMAGE_REGISTRY_PASSWORD }}
 
@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        namespace: ["kilo-dev"] #[ "kilo-dev", "kilo-qa", "kilo-prod" ] # Deploy to these namespaces
+        namespace: ["kilo-dev"] # Add other namespaces as needed
 
     env:
       OPENSHIFT_NAMESPACE: ${{ matrix.namespace }}
@@ -75,30 +75,35 @@ jobs:
           openshift_token: ${{ secrets.OPENSHIFT_TOKEN }}
           insecure_skip_tls_verify: true
           namespace: ${{ env.OPENSHIFT_NAMESPACE }}
-
-      # Debug Image Path (optional for troubleshooting)
-      - name: Debug Image Path
-        run: |
-          echo "Image path: ${{ steps.push-image.outputs.image }}"
-
-      # Deploy the application and expose as a service
-      - name: Create and expose OpenShift app
-        id: deploy-and-expose
-        uses: redhat-actions/oc-new-app@v1
-        with:
-          app_name: ${{ env.APP_NAME }}
-          image: ${{ env.IMAGE_REGISTRY }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAGS }}
-          namespace: ${{ env.OPENSHIFT_NAMESPACE }}
-          port: ${{ env.APP_PORT }}
           
+      # Clean up old deployments
+      - name: Clean up old deployments and ReplicaSets
+        run: |
+          # Clean up old resources if they exist
+          oc delete route/${{ env.APP_NAME }} --ignore-not-found -n ${{ env.OPENSHIFT_NAMESPACE }}
+          oc delete service/${{ env.APP_NAME }} --ignore-not-found -n ${{ env.OPENSHIFT_NAMESPACE }}
+          oc delete deployment/${{ env.APP_NAME }} --ignore-not-found -n ${{ env.OPENSHIFT_NAMESPACE }}
+          oc delete replicasets -l app=${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} --ignore-not-found
+          
+      # Step 9: Deploy and Expose OpenShift App
+      - name: Deploy OpenShift App
+        run: |
+          # Deploy the application from the Docker image
+          oc new-app ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REGISTRY_USER }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAGS }} \
+            --name=${{ env.APP_NAME }} \
+            -n ${{ env.OPENSHIFT_NAMESPACE }}
+            
+          oc expose svc/${{ env.APP_NAME }} --port=${{ env.APP_PORT }} -n ${{ env.OPENSHIFT_NAMESPACE }}
+
       # Set resource requests and limits
       - name: Set resource requests and limits
         run: |
-          oc set resources deployment/${{ env.APP_NAME }} --requests=cpu=200m,memory=250Mi --limits=cpu=1,memory=1Gi -n ${{ env.OPENSHIFT_NAMESPACE }}   
-          
+          oc set resources deployment/${{ env.APP_NAME }} --requests=cpu=200m,memory=250Mi --limits=cpu=1,memory=1Gi -n ${{ env.OPENSHIFT_NAMESPACE }}
+
       # Enable HTTPS for the Route
       - name: Enable HTTPS for the Route
         run: |
+          # Expose the service and enable HTTPS with TLS edge termination
           oc patch route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -p '{"spec":{"tls":{"termination":"edge"}}}'
           oc annotate route ${{ env.APP_NAME }} haproxy.router.openshift.io/redirect-to-https=true --overwrite
 
@@ -108,17 +113,12 @@ jobs:
           ROUTE=$(oc get route ${{ env.APP_NAME }} -o jsonpath='{.spec.host}')
           oc set env deployment/${{ env.APP_NAME }} OpenApi__HostNames=https://$ROUTE
 
-      # Set environment variables for HTTPS
-      - name: Set environment variables for HTTPS
-        run: |
-          oc set env deployment/${{ env.APP_NAME }} AzureFunctionsJobHost__Extensions__OpenApi__ForceHttps=true    
+      #Scale Deployment
+      #- name: Scale Deployment
+      #  run: |
+      #   oc scale deployment/${{ env.APP_NAME }} --replicas=1
 
-      # Scale the application to ensure multiple pods for load balancing
-      - name: Scale Deployment
-        run: |
-          oc scale deployment/${{ env.APP_NAME }} --replicas=1
-
-      # Set up Horizontal Pod Autoscaler (HPA)
+      # Configure Horizontal Pod Autoscaler
       - name: Configure Horizontal Pod Autoscaler
         run: |
           if oc get hpa ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} &>/dev/null; then
@@ -126,7 +126,7 @@ jobs:
           fi
           oc autoscale deployment/${{ env.APP_NAME }} --min=1 --max=2 --cpu-percent=70 -n ${{ env.OPENSHIFT_NAMESPACE }}
 
-      # Wait for deployment rollout
+      # Wait for Deployment Rollout
       - name: Wait for Deployment Rollout
         run: |
           oc rollout status deployment/${{ env.APP_NAME }} --watch -n ${{ env.OPENSHIFT_NAMESPACE }}
@@ -143,7 +143,7 @@ jobs:
           oc set env deployment/${{ env.APP_NAME }} SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }} -n ${{ env.OPENSHIFT_NAMESPACE }}
           oc set env deployment/${{ env.APP_NAME }} SENDER_ADDRESS=${{ secrets.SENDER_ADDRESS }} -n ${{ env.OPENSHIFT_NAMESPACE }}
 
-      # Print application URL
+      # Print Application URL
       - name: Print Application URL
         run: |
           ROUTE=$(oc get route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -o jsonpath='{.spec.host}')
