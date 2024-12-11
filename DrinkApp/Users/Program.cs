@@ -43,6 +43,16 @@ namespace Users
                     services.AddSingleton<ICareGiverRepository, CareGiverRepository>();
                     services.AddDbContext<UserDbContext>();
                     services.AddScoped(typeof(IGenericRepository<>), typeof(EntityBaseRepository<>));
+                    services.AddCors(options =>
+                    {
+                        options.AddDefaultPolicy(builder =>
+                        {
+                            builder
+                                .AllowAnyOrigin()
+                                .AllowAnyMethod()
+                                .AllowAnyHeader();
+                        });
+                    });
                 })
                 .Build();
             await host.RunAsync();
