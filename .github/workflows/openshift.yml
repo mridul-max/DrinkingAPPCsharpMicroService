@@ -106,7 +106,16 @@ jobs:
           # Expose the service and enable HTTPS with TLS edge termination
           oc patch route ${{ env.APP_NAME }} -n ${{ env.OPENSHIFT_NAMESPACE }} -p '{"spec":{"tls":{"termination":"edge"}}}'
           oc annotate route ${{ env.APP_NAME }} haproxy.router.openshift.io/redirect-to-https=true --overwrite
-
+    
+      # Configure CORS
+      - name: Configure CORS
+        run: |
+          oc annotate route ${{ env.APP_NAME }} \
+            haproxy.router.openshift.io/cors-allow-origin="https://your-frontend-domain.com" \
+            haproxy.router.openshift.io/cors-allow-methods="GET, POST, PUT, DELETE, OPTIONS" \
+            haproxy.router.openshift.io/cors-allow-headers="Authorization, Content-Type" \
+            --overwrite
+            
       # Set OpenAPI Hostnames (HTTPS)
       - name: Set OpenAPI Hostnames (HTTPS)
         run: |
